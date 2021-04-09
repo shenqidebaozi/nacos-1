@@ -24,7 +24,7 @@ func newWatcher(ctx context.Context, cli naming_client.INamingClient, serviceNam
 	w := &watcher{
 		serviceName: serviceName,
 		cli:         cli,
-		watchChan:   make(chan bool),
+		watchChan:   make(chan bool, 1),
 	}
 	w.ctx, w.cancel = context.WithCancel(ctx)
 
@@ -46,16 +46,15 @@ func (w *watcher) Next() ([]*registry.ServiceInstance, error) {
 			return nil, w.ctx.Err()
 		case <-w.watchChan:
 		}
-
-		mIns, err := w.cli.SelectInstances(vo.SelectInstancesParam{
+		res, err := w.cli.GetService(vo.GetServiceParam{
 			ServiceName: w.serviceName,
 		})
 		if err != nil {
 			return nil, err
 		}
 		var items []*registry.ServiceInstance
-		for _, mIn := range mIns {
-			si, e := unmarshal(mIn)
+		for _, in := range res.Hosts {
+			si, e := unmarshal(in)
 			if e != nil {
 				return nil, err
 			}

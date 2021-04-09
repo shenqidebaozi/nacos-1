@@ -42,7 +42,7 @@ func unmarshal(i model.Instance) (si *registry.ServiceInstance, err error) {
 		endpointsServerType = t
 	}
 
-	endpoints = []string{fmt.Sprint("%s://%s:%s", endpointsServerType, i.Ip, i.Port)}
+	endpoints = []string{fmt.Sprintf("%s://%s:%v", endpointsServerType, i.Ip, i.Port)}
 	si = &registry.ServiceInstance{
 		//ID:        id,
 		Name: serviceName,

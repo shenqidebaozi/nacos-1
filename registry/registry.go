@@ -168,15 +168,15 @@ func (r *Registry) Watch(ctx context.Context, serviceName string) (registry.Watc
 }
 
 func (r *Registry) GetService(ctx context.Context, serviceName string) ([]*registry.ServiceInstance, error) {
-	mIns, err := r.cli.SelectInstances(vo.SelectInstancesParam{
+	res, err := r.cli.GetService(vo.GetServiceParam{
 		ServiceName: serviceName,
 	})
 	if err != nil {
 		return nil, err
 	}
 	var items []*registry.ServiceInstance
-	for _, mIn := range mIns {
-		si, e := unmarshal(mIn)
+	for _, in := range res.Hosts {
+		si, e := unmarshal(in)
 		if e != nil {
 			return nil, err
 		}
