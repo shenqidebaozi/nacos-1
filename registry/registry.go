@@ -110,10 +110,6 @@ func resolveEndpoints(endpoint string) (srvName, ip string, port uint64, err err
 }
 
 func (r *Registry) Register(ctx context.Context, service *registry.ServiceInstance) error {
-	go func() {
-		r.Watch(ctx, "golang-sms@cron")
-	}()
-
 	b, err := json.Marshal(service)
 	if err != nil {
 		return nil
