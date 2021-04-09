@@ -137,6 +137,7 @@ func (r *Registry) Register(ctx context.Context, service *registry.ServiceInstan
 			ClusterName: r.opt.clusterName,
 			GroupName:   r.opt.groupName,
 		})
+		delete(service.Metadata, MdColumnSrvInstance)
 		if e != nil {
 			return fmt.Errorf("RegisterInstance err %v,%v", e, endpoint)
 		}
