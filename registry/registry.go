@@ -110,17 +110,20 @@ func resolveEndpoints(endpoint string) (srvName, ip string, port uint64, err err
 }
 
 func (r *Registry) Register(ctx context.Context, service *registry.ServiceInstance) error {
-	b, err := json.Marshal(service)
-	if err != nil {
-		return nil
-	}
-	service.Metadata[MdColumnSrvInstance] = string(b)
-
-	for _, endpoint := range service.Endpoints {
+	endpoints := service.Endpoints
+	for _, endpoint := range endpoints {
 		st, ip, port, err := resolveEndpoints(endpoint)
 		if err != nil {
 			return err
 		}
+
+		//keep only the current serverType endpoint
+		service.Endpoints = []string{endpoint}
+		b, err := json.Marshal(service)
+		if err != nil {
+			return nil
+		}
+		service.Metadata[MdColumnSrvInstance] = string(b)
 
 		_, e := r.cli.RegisterInstance(vo.RegisterInstanceParam{
 			Ip:          ip,
