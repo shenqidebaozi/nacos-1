@@ -2,6 +2,8 @@ package registry
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/model"
@@ -54,11 +56,13 @@ func (w *watcher) Next() ([]*registry.ServiceInstance, error) {
 		}
 		var items []*registry.ServiceInstance
 		for _, in := range res.Hosts {
-			si, e := unmarshal(in)
-			if e != nil {
-				return nil, err
-			}
-			items = append(items, si)
+			items = append(items, &registry.ServiceInstance{
+				ID:        in.InstanceId,
+				Name:      res.Name,
+				Version:   in.Metadata["version"],
+				Metadata:  in.Metadata,
+				Endpoints: []string{fmt.Sprintf("%s://%s:%d", in.Metadata["kind"], in.Ip, in.Port)},
+			})
 		}
 		return items, nil
 	}

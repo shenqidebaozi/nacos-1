@@ -2,13 +2,14 @@ package test
 
 import (
 	"context"
+	"log"
+	"testing"
+	"time"
+
 	"github.com/go-kratos/nacos/registry"
 	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/vo"
-	"log"
-	"testing"
-	"time"
 )
 
 func TestRegistry(t *testing.T) {

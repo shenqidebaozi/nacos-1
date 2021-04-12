@@ -1,12 +1,13 @@
 package server
 
 import (
+	"log"
+
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/nacos/registry"
 	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/vo"
-	"log"
 )
 
 func main() {

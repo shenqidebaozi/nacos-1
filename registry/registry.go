@@ -2,15 +2,14 @@ package registry
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"net"
+	"net/url"
+	"strconv"
+
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/vo"
-	"github.com/pkg/errors"
-	"net"
-	"strconv"
-	"strings"
 )
 
 var (
@@ -18,126 +17,88 @@ var (
 	_ registry.Discovery = (*Registry)(nil)
 )
 
-const (
-	defPrefix      = "/golang/registry"
-	defClusterName = "DEFAULT"
-	defGroupName   = "DEFAULT_GROUP"
-	defWeight      = 10
-)
-
 type options struct {
-	prefixPath string
-	//ttl        uint64
-	weight float64
-
-	clusterName string
-	groupName   string
+	prefix  string
+	weight  float64
+	cluster string
+	group   string
 }
 
+// Option is nacos option.
 type Option func(o *options)
 
-func WithPrefixPath(prefix string) Option {
-	return func(o *options) { o.prefixPath = prefix }
+// WithPrefix with prefix path.
+func WithPrefix(prefix string) Option {
+	return func(o *options) { o.prefix = prefix }
 }
 
+// WithWeight with weight option.
 func WithWeight(weight float64) Option {
 	return func(o *options) { o.weight = weight }
 }
 
-//func ClusterName(clusterName string) Option {
-//	return func(o *options) { o.clusterName = clusterName }
-//}
-//func GroupName(groupName string) Option {
-//	return func(o *options) { o.groupName = groupName }
-//}
-
-type Registry struct {
-	opt *options
-	cli naming_client.INamingClient
+// WithCluster with cluster option.
+func WithCluster(cluster string) Option {
+	return func(o *options) { o.cluster = cluster }
 }
 
-func New(iClient naming_client.INamingClient, opts ...Option) (r *Registry) {
-	opt := &options{
-		prefixPath:  defPrefix,
-		clusterName: defClusterName,
-		groupName:   defGroupName,
-		weight:      defWeight,
+// WithGroup with group option.
+func WithGroup(group string) Option {
+	return func(o *options) { o.group = group }
+}
+
+// Registry is nacos registry.
+type Registry struct {
+	opts options
+	cli  naming_client.INamingClient
+}
+
+// New new a nacos registry.
+func New(cli naming_client.INamingClient, opts ...Option) (r *Registry) {
+	options := options{
+		prefix:  "/microservices",
+		cluster: "DEFAULT",
+		group:   "DEFAULT_GROUP",
+		weight:  100,
 	}
 	for _, option := range opts {
-		option(opt)
+		option(&options)
 	}
 	return &Registry{
-		opt: opt,
-		cli: iClient,
+		opts: options,
+		cli:  cli,
 	}
 }
 
-// like:
-// serviceName@http
-// serviceName@grpc
-func GenServiceName(serviceName, endpointsServerType string) string {
-	return serviceName + "@" + endpointsServerType
-}
-func SplitServiceName(MixServiceName string) (serviceName, endpointsServerType string, err error) {
-	s := strings.Split(MixServiceName, "@")
-	if len(s) != 2 {
-		return "", "", errors.Errorf("[registry]serviceName :%s")
-	}
-	return s[0], s[1], nil
-}
-
-func resolveEndpoints(endpoint string) (srvName, ip string, port uint64, err error) {
-	var p string
-	var e error
-
-	endpoints := strings.Split(endpoint, "://")
-	if len(endpoints) != 2 {
-		err = fmt.Errorf("endpoint err Split %v", endpoint)
-		return
-	}
-	srvName = endpoints[0]
-	ip, p, err = net.SplitHostPort(endpoints[1])
-	if err != nil {
-		err = fmt.Errorf("endpoint err SplitHostPort %v,%v", err, endpoint)
-		return
-	}
-	port, e = strconv.ParseUint(p, 10, 64)
-	if e != nil {
-		err = fmt.Errorf("endpoint point err %v,%v", e, endpoint)
-		return
-	}
-	return
-}
-
-func (r *Registry) Register(ctx context.Context, service *registry.ServiceInstance) error {
-	endpoints := service.Endpoints
-	for _, endpoint := range endpoints {
-		st, ip, port, err := resolveEndpoints(endpoint)
+// Register the registration.
+func (r *Registry) Register(ctx context.Context, si *registry.ServiceInstance) error {
+	for _, endpoint := range si.Endpoints {
+		u, err := url.Parse(endpoint)
 		if err != nil {
 			return err
 		}
-
-		//keep only the current serverType endpoint
-		service.Endpoints = []string{endpoint}
-		b, err := json.Marshal(service)
+		host, port, err := net.SplitHostPort(u.Host)
 		if err != nil {
-			return nil
+			return err
 		}
-		service.Metadata[MdColumnSrvInstance] = string(b)
-
+		p, err := strconv.Atoi(port)
+		if err != nil {
+			return err
+		}
+		si.Metadata["kind"] = u.Scheme
+		si.Metadata["version"] = si.Version
 		_, e := r.cli.RegisterInstance(vo.RegisterInstanceParam{
-			Ip:          ip,
-			Port:        port,
-			ServiceName: GenServiceName(service.Name, st),
-			Weight:      r.opt.weight,
+			Ip:          host,
+			Port:        uint64(p),
+			ServiceName: si.Name,
+			Weight:      r.opts.weight,
 			Enable:      true,
 			Healthy:     true,
 			Ephemeral:   true,
-			Metadata:    service.Metadata,
-			ClusterName: r.opt.clusterName,
-			GroupName:   r.opt.groupName,
+			Metadata:    si.Metadata,
+			ClusterName: r.opts.cluster,
+			GroupName:   r.opts.group,
 		})
-		delete(service.Metadata, MdColumnSrvInstance)
 		if e != nil {
 			return fmt.Errorf("RegisterInstance err %v,%v", e, endpoint)
 		}
@@ -145,32 +106,40 @@ func (r *Registry) Register(ctx context.Context, service *registry.ServiceInstan
 	return nil
 }
 
+// Deregister the registration.
 func (r *Registry) Deregister(ctx context.Context, service *registry.ServiceInstance) error {
-	var err error
 	for _, endpoint := range service.Endpoints {
-		st, ip, port, err := resolveEndpoints(endpoint)
+		u, err := url.Parse(endpoint)
 		if err != nil {
-			err = errors.Wrap(err, fmt.Sprintf("resolveEndpoints(endpoint) endpoint:%v", endpoint))
-			continue
+			return err
 		}
-		_, e := r.cli.DeregisterInstance(vo.DeregisterInstanceParam{
-			Ip:          ip,
-			Port:        port,
-			ServiceName: GenServiceName(service.Name, st),
-		})
-		if e != nil {
-			err = errors.Wrap(e, fmt.Sprintf("DeregisterInstance ip:%v,port:%v,service-name:%v", ip, port, GenServiceName(service.Name, st)))
+		host, port, err := net.SplitHostPort(u.Host)
+		if err != nil {
+			return err
+		}
+		p, err := strconv.Atoi(port)
+		if err != nil {
+			return err
+		}
+		if _, err = r.cli.DeregisterInstance(vo.DeregisterInstanceParam{
+			Ip:          host,
+			Port:        uint64(p),
+			ServiceName: service.Name,
+			GroupName:   r.opts.group,
+			Cluster:     r.opts.cluster,
+		}); err != nil {
+			return err
 		}
 	}
-	return err
+	return nil
 }
 
+// Watch creates a watcher according to the service name.
 func (r *Registry) Watch(ctx context.Context, serviceName string) (registry.Watcher, error) {
-	groupName := defGroupName
-	clusters := []string{defClusterName}
-	return newWatcher(ctx, r.cli, serviceName, groupName, clusters)
+	return newWatcher(ctx, r.cli, serviceName, r.opts.group, []string{r.opts.cluster})
 }
 
+// GetService return the service instances in memory according to the service name.
 func (r *Registry) GetService(ctx context.Context, serviceName string) ([]*registry.ServiceInstance, error) {
 	res, err := r.cli.GetService(vo.GetServiceParam{
 		ServiceName: serviceName,
@@ -180,11 +149,13 @@ func (r *Registry) GetService(ctx context.Context, serviceName string) ([]*regis
 	}
 	var items []*registry.ServiceInstance
 	for _, in := range res.Hosts {
-		si, e := unmarshal(in)
-		if e != nil {
-			return nil, err
-		}
-		items = append(items, si)
+		items = append(items, &registry.ServiceInstance{
+			ID:        in.InstanceId,
+			Name:      res.Name,
+			Version:   in.Metadata["version"],
+			Metadata:  in.Metadata,
+			Endpoints: []string{fmt.Sprintf("%s://%s:%d", in.Metadata["kind"], in.Ip, in.Port)},
+		})
 	}
 	return items, nil
 }

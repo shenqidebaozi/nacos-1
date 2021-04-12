@@ -2,12 +2,13 @@ package client
 
 import (
 	"context"
+	"log"
+
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/nacos/registry"
 	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/vo"
-	"log"
 )
 
 func main() {
@@ -15,7 +16,7 @@ func main() {
 		*constant.NewServerConfig("127.0.0.1", 8848),
 	}
 
-	cc := constant.ClientConfig{
+	cc := &constant.ClientConfig{
 		NamespaceId:         "public", //namespace id
 		TimeoutMs:           5000,
 		NotLoadCacheAtStart: true,
@@ -29,7 +30,7 @@ func main() {
 	// a more graceful way to create naming client
 	client, err := clients.NewNamingClient(
 		vo.NacosClientParam{
-			ClientConfig:  &cc,
+			ClientConfig:  cc,
 			ServerConfigs: sc,
 		},
 	)
@@ -45,16 +46,10 @@ func main() {
 		grpc.WithEndpoint("discovery:///helloworld"),
 		grpc.WithDiscovery(r),
 	)
-	log.Println(conn, err)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//client := helloworld.NewGreeterClient(conn)
-	//reply, err := client.SayHello(context.Background(), &helloworld.HelloRequest{Name: "kratos"})
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//log.Printf("[grpc] SayHello %+v\n", reply)
+	log.Println(conn, err)
 }
