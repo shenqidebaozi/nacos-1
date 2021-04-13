@@ -3,7 +3,7 @@
 ---
 
 **example**
-````
+```go
 sc := []constant.ServerConfig{
 	*constant.NewServerConfig("127.0.0.1", 8848),
 }
@@ -47,4 +47,4 @@ conn, err := grpc.DialInsecure(
 	grpc.WithEndpoint("discovery:///helloworld"),
 	grpc.WithDiscovery(r),
 )
-````
+```
