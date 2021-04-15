@@ -85,6 +85,9 @@ func (r *Registry) Register(ctx context.Context, si *registry.ServiceInstance) e
 		if err != nil {
 			return err
 		}
+		if si.Metadata == nil {
+			si.Metadata = make(map[string]string)
+		}
 		si.Metadata["kind"] = u.Scheme
 		si.Metadata["version"] = si.Version
 		_, e := r.cli.RegisterInstance(vo.RegisterInstanceParam{
