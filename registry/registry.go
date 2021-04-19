@@ -72,6 +72,9 @@ func New(cli naming_client.INamingClient, opts ...Option) (r *Registry) {
 
 // Register the registration.
 func (r *Registry) Register(ctx context.Context, si *registry.ServiceInstance) error {
+	if si.Name == "" {
+		return fmt.Errorf("kratos/nacos: serviceInstance.name cannot is empty.")
+	}
 	for _, endpoint := range si.Endpoints {
 		u, err := url.Parse(endpoint)
 		if err != nil {
