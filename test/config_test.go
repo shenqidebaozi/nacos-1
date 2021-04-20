@@ -12,7 +12,7 @@ import (
 )
 
 func TestGetConfig(t *testing.T) {
-	ip := "mse-874cf952-p.nacos-ans.mse.aliyuncs.com"
+	ip := ""
 	//ctx := context.Background()
 
 	sc := []constant.ServerConfig{
