@@ -96,7 +96,7 @@ func (r *Registry) Register(ctx context.Context, si *registry.ServiceInstance) e
 		_, e := r.cli.RegisterInstance(vo.RegisterInstanceParam{
 			Ip:          host,
 			Port:        uint64(p),
-			ServiceName: si.Name,
+			ServiceName: si.Name + "." + u.Scheme,
 			Weight:      r.opts.weight,
 			Enable:      true,
 			Healthy:     true,
