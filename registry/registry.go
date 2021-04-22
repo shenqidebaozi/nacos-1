@@ -147,17 +147,18 @@ func (r *Registry) Watch(ctx context.Context, serviceName string) (registry.Watc
 
 // GetService return the service instances in memory according to the service name.
 func (r *Registry) GetService(ctx context.Context, serviceName string) ([]*registry.ServiceInstance, error) {
-	res, err := r.cli.GetService(vo.GetServiceParam{
+	res, err := r.cli.SelectInstances(vo.SelectInstancesParam{
 		ServiceName: serviceName,
+		HealthyOnly: true,
 	})
 	if err != nil {
 		return nil, err
 	}
 	var items []*registry.ServiceInstance
-	for _, in := range res.Hosts {
+	for _, in := range res {
 		items = append(items, &registry.ServiceInstance{
 			ID:        in.InstanceId,
-			Name:      res.Name,
+			Name:      in.ServiceName,
 			Version:   in.Metadata["version"],
 			Metadata:  in.Metadata,
 			Endpoints: []string{fmt.Sprintf("%s://%s:%d", in.Metadata["kind"], in.Ip, in.Port)},
