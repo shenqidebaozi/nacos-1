@@ -44,7 +44,8 @@ if err := app.Run(); err != nil {
 // client
 conn, err := grpc.DialInsecure(
 	context.Background(),
-	grpc.WithEndpoint("discovery:///helloworld"),
+	// specify a scheme
+	grpc.WithEndpoint("discovery:///helloworld.grpc"),
 	grpc.WithDiscovery(r),
 )
 ```
